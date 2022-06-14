@@ -66,8 +66,8 @@ def check_response(response):
     try:
         homework = response.get('homeworks')[0]
     except Exception as error:
-       logging.error(f'Произошла ошибка: {error}')
-       raise HWParseError(f'Произошла ошибка: {error}')
+        logging.error(f'Произошла ошибка: {error}')
+        raise HWParseError(f'Произошла ошибка: {error}')
     return homework
 
 
@@ -101,8 +101,8 @@ def main():
     current_timestamp = int(time.time())
     if not check_tokens():
         logging.critical(
-        f'Переменные окружения недоступны:\n'
-        f'{PRACTICUM_TOKEN}\n {TELEGRAM_TOKEN}\n {TELEGRAM_CHAT_ID}'
+            f'Переменные окружения недоступны:\n'
+            f'{PRACTICUM_TOKEN}\n {TELEGRAM_TOKEN}\n {TELEGRAM_CHAT_ID}'
         )
         raise Exception('Переменные окружения недоступны')
     while True:
