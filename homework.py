@@ -7,6 +7,8 @@ from http import HTTPStatus
 import requests
 from telegram import Bot
 
+from exceptions import HWParseError
+
 PRACTICUM_TOKEN = os.getenv('PRACTICUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
@@ -19,7 +21,7 @@ HOMEWORK_STATUSES = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     filename='main.log',
     filemode='w',
     format='%(asctime)s, %(levelname)s, %(message)s, %(name)s'
@@ -40,8 +42,7 @@ def send_message(bot, message):
 
 def get_api_answer(current_timestamp):
     """Делает запрос к URL, возвращает json-файл."""
-    timestamp = current_timestamp or int(time.time())
-    params = {'from_date': timestamp}
+    params = {'from_date': current_timestamp}
     response = requests.get(ENDPOINT, headers=HEADERS, params=params)
     if response.status_code != HTTPStatus.OK:
         logging.error(f'Сайт не доступен, код ответа {response.status_code}')
@@ -63,17 +64,10 @@ def check_response(response):
         logging.error(f'{type(response)} не является словарем')
         raise TypeError(f'{type(response)} не является словарем')
     try:
-        homeworks = response.get('homeworks')
-        logging.error(homeworks)
-    except KeyError:
-        logging.error('Ключ "homeworks" не найден в ответе')
-        raise KeyError('Ключ "homeworks" не найден в ответе')
-    try:
-        homework = homeworks[0]
-        logging.error(homework)
-    except IndexError:
-        logging.error('Список домашних работ пуст')
-        raise IndexError('Список домашних работ пуст')
+        homework = response.get('homeworks')[0]
+    except Exception as error:
+       logging.error(f'Произошла ошибка: {error}')
+       raise HWParseError(f'Произошла ошибка: {error}')
     return homework
 
 
@@ -81,13 +75,7 @@ def check_tokens():
     """Проверяет доступность переменных окружения.
     Возвращает True, если они доступны.
     """
-    if PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
-        return True
-    logging.critical(
-        f'Переменные окружения недоступны:\n'
-        f'{PRACTICUM_TOKEN}\n {TELEGRAM_TOKEN}\n {TELEGRAM_CHAT_ID}'
-    )
-    return False
+    return PRACTICUM_TOKEN and TELEGRAM_TOKEN and TELEGRAM_CHAT_ID
 
 
 def parse_status(homework):
@@ -111,21 +99,24 @@ def main():
     """Основная логика работы бота."""
     bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
-    if check_tokens():
-        while True:
-            try:
-                response = get_api_answer(current_timestamp)
-                current_timestamp = response.get('current_date')
-                homework = check_response(response)
-                message = parse_status(homework)
-                bot.send_message(TELEGRAM_CHAT_ID, message)
-            except Exception as error:
-                message = f'Сбой в работе программы: {error}'
-                bot.send_message(TELEGRAM_CHAT_ID, message)
-                time.sleep(RETRY_TIME)
-            else:
-                time.sleep(RETRY_TIME)
-    raise Exception('Переменные окружения недоступны')
+    if not check_tokens():
+        logging.critical(
+        f'Переменные окружения недоступны:\n'
+        f'{PRACTICUM_TOKEN}\n {TELEGRAM_TOKEN}\n {TELEGRAM_CHAT_ID}'
+        )
+        raise Exception('Переменные окружения недоступны')
+    while True:
+        try:
+            response = get_api_answer(current_timestamp)
+            current_timestamp = response.get('current_date', current_timestamp)
+            homework = check_response(response)
+            message = parse_status(homework)
+            bot.send_message(TELEGRAM_CHAT_ID, message)
+        except Exception as error:
+            message = f'Сбой в работе программы: {error}'
+            bot.send_message(TELEGRAM_CHAT_ID, message)
+        finally:
+            time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':

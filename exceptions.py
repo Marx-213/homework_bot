@@ -1,0 +1,2 @@
+class HWParseError(Exception):
+    pass
