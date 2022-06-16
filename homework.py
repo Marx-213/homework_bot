@@ -53,6 +53,7 @@ def get_api_answer(current_timestamp):
         return response
     except Exception as error:
         logging.error(f'Произошла ошибка: {error}')
+        raise Exception(f'Произошла ошибка: {error}')
 
 
 def check_response(response):
@@ -100,10 +101,7 @@ def main():
     bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     if not check_tokens():
-        logging.critical(
-            f'Переменные окружения недоступны:\n'
-            f'{PRACTICUM_TOKEN}\n {TELEGRAM_TOKEN}\n {TELEGRAM_CHAT_ID}'
-        )
+        logging.critical(f'Переменные окружения недоступны:\n')
         raise Exception('Переменные окружения недоступны')
     while True:
         try:
