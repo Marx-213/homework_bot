@@ -101,7 +101,7 @@ def main():
     bot = Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     if not check_tokens():
-        logging.critical(f'Переменные окружения недоступны:\n')
+        logging.critical('Переменные окружения недоступны')
         raise Exception('Переменные окружения недоступны')
     while True:
         try:
